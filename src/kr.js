@@ -195,11 +195,12 @@ function convertTo2d(arr) {
  */
 function getLineColors(img) {
   for (let col = 160; col < 200; col++) {
+    // stringify the pixel so we can filter by unique colors
     const colors = img.map((row) => JSON.stringify(row[col]));
     const filtered = colors
-      .filter((val, idx) => colors.indexOf(val) === idx)
-      .map((val) => JSON.parse(val))
-      .filter((val) => sum(val) < 1010);
+      .filter((pixel, idx) => colors.indexOf(pixel) === idx)
+      .map((pixel) => JSON.parse(pixel))
+      .filter((pixel) => !isWhite(pixel));
 
     log("Found line colors:", filtered);
 
