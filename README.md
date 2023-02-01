@@ -1,6 +1,6 @@
 # Mousehunt Auto Horn & KR Solver
 ## Getting Started
-If you just want to use the userscript, go to `dist/out.js` and copy paste the code into a new Tampermonkey script!
+If you just want to use the userscript, go to `dist/out.js` and copy paste the code into a new Tampermonkey script (or get it at [GreasyFork](https://greasyfork.org/en/scripts/459195-mousehunt-auto-horn-kr-solver))!
 
 If you want to build on the script, follow these steps:
 
