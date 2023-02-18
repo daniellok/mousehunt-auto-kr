@@ -1,3 +1,5 @@
+import { HORN_DELAY_MAX_SECS, HORN_DELAY_MIN_SECS } from "./constants.js";
+
 export function sum(arr) {
   return arr.reduce((a, b) => a + b);
 }
@@ -49,4 +51,8 @@ export function formatTime(date) {
 export function log(message) {
   const time = formatTime(new Date());
   console.log(`${time}: ${message}`);
+}
+
+export function getRandomHornDelay() {
+  return Math.max(Math.random() * HORN_DELAY_MAX_SECS, HORN_DELAY_MIN_SECS);
 }

@@ -1,11 +1,19 @@
+import { PUZZLE_FORM_SELECTOR, HORN_READY_SELECTOR } from "./constants";
 import {
-  PUZZLE_FORM_SELECTOR,
-  HORN_READY_SELECTOR,
-  HORN_DELAY_MIN_SECS,
-  HORN_DELAY_MAX_SECS,
-} from "./constants";
-import { getSecsToNextHorn, soundHorn, log, sleep, formatTime } from "./utils";
+  getSecsToNextHorn,
+  getRandomHornDelay,
+  soundHorn,
+  log,
+  sleep,
+  formatTime,
+} from "./utils";
 import { solveKR } from "./kr.js";
+import {
+  initUI,
+  renderSolvingKR,
+  renderWaitingForHorn,
+  renderStopped,
+} from "./ui.js";
 
 /**
  * Figure out what the next step is (e.g. is the horn
@@ -31,6 +39,7 @@ async function getState() {
     let retryCount = 0;
 
     while (!success && retryCount < 3) {
+      renderSolvingKR(retryCount);
       success = await solveKR();
       retryCount++;
       if (!success) {
@@ -56,21 +65,20 @@ async function getState() {
   // after everything is done, get the next horn time
   // and return it so the caller knows how long to wait.
   const secsToNextHorn = getSecsToNextHorn();
-  const randomDelay = Math.max(
-    Math.random() * HORN_DELAY_MAX_SECS,
-    HORN_DELAY_MIN_SECS
-  );
+  const randomDelay = getRandomHornDelay();
   const nextHornTime = Date.now() + (secsToNextHorn + randomDelay) * 1000;
-  log("Next horn time: " + formatTime(new Date(nextHornTime)));
+  const formattedTime = formatTime(new Date(nextHornTime));
+  renderWaitingForHorn(nextHornTime);
+  log("Next horn time: " + formattedTime);
 
   return nextHornTime;
 }
 
 /**
  * Function that handles the main loop of the script.
- * It checks every 5 seconds to see if the horn is ready.
+ * It checks every second to see if the horn is ready.
  *
- * The reason we check every 5 seconds instead of just
+ * The reason we check every second instead of just
  * sleeping until the next horn is that the script can
  * go to sleep (e.g. if you close your laptop). In such
  * cases, the timer stops, which can potentially delay the
@@ -83,11 +91,15 @@ async function loop() {
     if (nextHornTime === -1) {
       break;
     } else if (nextHornTime > Date.now()) {
-      await sleep(5000);
+      renderWaitingForHorn(nextHornTime);
+      await sleep(1000);
     } else {
       nextHornTime = await getState();
     }
   }
+
+  renderStopped();
 }
 
+initUI();
 loop();
