@@ -1,4 +1,4 @@
-import { PUZZLE_FORM_SELECTOR, HORN_READY_SELECTOR } from "./constants";
+import { PUZZLE_ACTIVE_SELECTOR, HORN_READY_SELECTOR } from "./constants";
 import {
   getSecsToNextHorn,
   getRandomHornDelay,
@@ -32,7 +32,7 @@ async function getState() {
   // if a king's reward is present, solve it
   // attempt to solve it 3 times, and give up
   // if it wasn't successful.
-  const hasPuzzle = document.querySelector(PUZZLE_FORM_SELECTOR);
+  const hasPuzzle = document.querySelector(PUZZLE_ACTIVE_SELECTOR);
   if (hasPuzzle) {
     log("Solving KR...");
     let success = false;

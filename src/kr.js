@@ -18,21 +18,13 @@ export async function solveKR() {
   const ctx = canvas.getContext("2d");
   ctx.drawImage(newImg, 0, 0);
 
-  // erase the 4 lines that run through the characters
-  // if we fail to do so, return `false` to indicate that
-  // OCR has failed for this king's reward.
-  const success = eraseLines(ctx);
-  if (!success) {
-    await getNewCodeImage();
-    return false;
-  }
-
   // use tesseract.js to perform OCR
   const worker = await createWorker();
   await worker.loadLanguage("eng");
   await worker.initialize("eng");
   const { data } = await worker.recognize(canvas);
-  const code = data.text.trim();
+  const rawCode = data.text.trim();
+  const code = rawCode.replaceAll(/[^A-Za-z0-9]/g, "");
 
   // if the predicted code is not 5 chars, get a new image.
   // this happens when one of the lines is the same color
@@ -49,6 +41,9 @@ export async function solveKR() {
   log("OCR success! Code: " + code);
   const codeInput = document.querySelector(PUZZLE_CODE_INPUT);
   codeInput.value = code;
+
+  // need to dispatch a keyup to enable the claim button
+  codeInput.dispatchEvent(new KeyboardEvent("keyup"));
 
   await sleep(1000);
   const submit = document.querySelector(PUZZLE_SUBMIT_BUTTON);
