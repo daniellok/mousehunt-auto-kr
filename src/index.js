@@ -91,6 +91,12 @@ async function loop() {
     if (nextHornTime === -1) {
       break;
     } else if (nextHornTime > Date.now()) {
+      // if the user manually sounded the horn and next
+      // available horn is after than the planned horn time
+      if (nextHornTime < getSecsToNextHorn()) {
+        nextHornTime = await getState();
+      }
+
       renderWaitingForHorn(nextHornTime);
       await sleep(1000);
     } else {

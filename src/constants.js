@@ -14,6 +14,6 @@ export const PUZZLE_ACTIVE_SELECTOR = ".puzzleView--active";
 export const PUZZLE_IMAGE_SELECTOR = ".puzzleView__image > img";
 export const PUZZLE_CODE_INPUT = ".puzzleView__code";
 export const PUZZLE_SUBMIT_BUTTON = ".puzzleView__solveButton";
-export const PUZZLE_RESUME_BUTTON = "puzzleView__resumeButton";
+export const PUZZLE_RESUME_BUTTON = ".puzzleView__resumeButton";
 export const PUZZLE_NEW_CODE_LINK = ".puzzleView__requestNewPuzzleButton";
 export const HORN_READY_SELECTOR = ".huntersHornView__horn--reveal";
