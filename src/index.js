@@ -86,8 +86,14 @@ async function getState() {
  */
 async function loop() {
   let nextHornTime = 0;
+  let lastRefreshTime = Date.now();
 
   while (true) {
+    // refresh every 30 mins
+    if (Date.now() - lastRefreshTime > 1800000) {
+      window.location.reload();
+    }
+
     if (nextHornTime === -1) {
       break;
     } else if (nextHornTime > Date.now()) {
