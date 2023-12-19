@@ -25,7 +25,7 @@ export async function soundHorn() {
   await sleep(2000);
 
   const messageText = document.querySelector(
-    ".huntersHornView__messageText"
+    ".huntersHornView__message"
   ).textContent;
   if (messageText !== "") {
     window.location.reload();

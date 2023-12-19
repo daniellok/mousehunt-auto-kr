@@ -1,4 +1,4 @@
-import { PUZZLE_FORM_SELECTOR, HORN_READY_SELECTOR } from "./constants";
+import { PUZZLE_ACTIVE_SELECTOR, HORN_READY_SELECTOR } from "./constants";
 import {
   getSecsToNextHorn,
   getRandomHornDelay,
@@ -32,7 +32,7 @@ async function getState() {
   // if a king's reward is present, solve it
   // attempt to solve it 3 times, and give up
   // if it wasn't successful.
-  const hasPuzzle = document.querySelector(PUZZLE_FORM_SELECTOR);
+  const hasPuzzle = document.querySelector(PUZZLE_ACTIVE_SELECTOR);
   if (hasPuzzle) {
     log("Solving KR...");
     let success = false;
@@ -86,11 +86,22 @@ async function getState() {
  */
 async function loop() {
   let nextHornTime = 0;
+  let lastRefreshTime = Date.now();
 
   while (true) {
+    // refresh every 30 mins
+    if (Date.now() - lastRefreshTime > 1800000) {
+      window.location.reload();
+    }
+
     if (nextHornTime === -1) {
       break;
     } else if (nextHornTime > Date.now()) {
+      // if the user manually sounded the horn and next
+      // available horn is after than the planned horn time
+      if (nextHornTime < getSecsToNextHorn()) {
+        nextHornTime = await getState();
+      }
       renderWaitingForHorn(nextHornTime);
       await sleep(1000);
     } else {
