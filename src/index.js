@@ -102,7 +102,6 @@ async function loop() {
       if (nextHornTime < getSecsToNextHorn()) {
         nextHornTime = await getState();
       }
-
       renderWaitingForHorn(nextHornTime);
       await sleep(1000);
     } else {
