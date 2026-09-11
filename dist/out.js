@@ -1491,6 +1491,16 @@
   var PUZZLE_RESUME_BUTTON = ".puzzleView__resumeButton";
   var PUZZLE_NEW_CODE_LINK = ".puzzleView__requestNewPuzzleButton";
   var HORN_READY_SELECTOR = ".huntersHornView__horn--reveal";
+  var DRACONIC_DEPTHS_SELECTOR = ".hudLocationContent.draconic_depths";
+  var DRACONIC_DEPTHS_HUNTS_REMAINING_SELECTOR = ".draconicDepthsCavernView__huntsRemainingQuantity";
+  var DRACONIC_DEPTHS_REINFORCE_BUTTON_SELECTOR = ".draconicDepthsCavernView__reinforceCavernButton";
+  var DRACONIC_DEPTHS_REINFORCE_HUNTS_INPUT_SELECTOR = "#reinforceHunts";
+  var DRACONIC_DEPTHS_REINFORCE_SUBMIT_BUTTON_SELECTOR = ".draconicDepthsReinforceCavernDialogView__reinforceButton";
+  var DRACONIC_DEPTHS_TOP_UP_THRESHOLD_MIN = 1;
+  var DRACONIC_DEPTHS_TOP_UP_THRESHOLD_MAX = 24;
+  var DRACONIC_DEPTHS_TOP_UP_THRESHOLD_DEFAULT = 10;
+  var DRACONIC_DEPTHS_TOP_UP_THRESHOLD_DISABLED = 1;
+  var DRACONIC_DEPTHS_TOP_UP_TARGET_MAX = 25;
 
   // src/utils.js
   async function sleep(ms) {
@@ -1588,7 +1598,13 @@
   // src/ui.js
   var CONTAINER_ID = "mh-bot-container";
   var HEADER_ID = "mh-bot-header";
+  var LOCATION_BADGE_ID = "mh-bot-location-badge";
   var STATE_TEXT_ID = "mh-bot-state-text";
+  var DRACONIC_DEPTHS_SECTION_ID = "mh-bot-draconic-depths-section";
+  var TOP_UP_THRESHOLD_SELECT_ID = "mh-bot-top-up-threshold";
+  var TOP_UP_TARGET_SELECT_ID = "mh-bot-top-up-target";
+  var TOP_UP_THRESHOLD_STORAGE_KEY = "mh-bot-top-up-threshold";
+  var TOP_UP_TARGET_STORAGE_KEY = "mh-bot-top-up-target";
   var css = `
 #${CONTAINER_ID} {
   font-size: 12px;
@@ -1609,6 +1625,13 @@
   font-size: 12px;
   margin: 0px;
 }
+
+#${DRACONIC_DEPTHS_SECTION_ID} {
+  display: none;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+}
 `;
   function injectCSS() {
     GM_addStyle(css);
@@ -1622,13 +1645,96 @@
     header.className = HEADER_ID;
     header.id = HEADER_ID;
     header.textContent = "MouseHunt Auto Horn & KR Solver";
+    const locationBadge = document.createElement("span");
+    locationBadge.id = LOCATION_BADGE_ID;
+    header.appendChild(locationBadge);
     container.appendChild(header);
     const stateText = document.createElement("p");
     stateText.id = STATE_TEXT_ID;
     stateText.textContent = "Initializing...";
     container.appendChild(stateText);
+    container.appendChild(buildDraconicDepthsSection());
     const mhContainer = document.getElementById("mousehuntContainer");
     mhContainer.insertBefore(container, mhContainer.firstChild);
+    updateDraconicDepthsUI();
+  }
+  function buildDraconicDepthsSection() {
+    const section = document.createElement("div");
+    section.id = DRACONIC_DEPTHS_SECTION_ID;
+    const thresholdLabel = document.createElement("label");
+    thresholdLabel.textContent = "Top up when less than: ";
+    const thresholdSelect = document.createElement("select");
+    thresholdSelect.id = TOP_UP_THRESHOLD_SELECT_ID;
+    for (let i = DRACONIC_DEPTHS_TOP_UP_THRESHOLD_MIN; i <= DRACONIC_DEPTHS_TOP_UP_THRESHOLD_MAX; i++) {
+      const option = document.createElement("option");
+      option.value = i;
+      option.textContent = i === DRACONIC_DEPTHS_TOP_UP_THRESHOLD_DISABLED ? `${i} (disabled)` : i;
+      thresholdSelect.appendChild(option);
+    }
+    const storedThreshold = Number(localStorage.getItem(TOP_UP_THRESHOLD_STORAGE_KEY)) || DRACONIC_DEPTHS_TOP_UP_THRESHOLD_DEFAULT;
+    thresholdSelect.value = storedThreshold;
+    thresholdLabel.appendChild(thresholdSelect);
+    const targetLabel = document.createElement("label");
+    targetLabel.textContent = "Top up to: ";
+    const targetSelect = document.createElement("select");
+    targetSelect.id = TOP_UP_TARGET_SELECT_ID;
+    targetLabel.appendChild(targetSelect);
+    const storedTarget = Number(localStorage.getItem(TOP_UP_TARGET_STORAGE_KEY)) || DRACONIC_DEPTHS_TOP_UP_TARGET_MAX;
+    populateTopUpTargetOptions(targetSelect, storedThreshold, storedTarget);
+    targetSelect.disabled = storedThreshold === DRACONIC_DEPTHS_TOP_UP_THRESHOLD_DISABLED;
+    thresholdSelect.addEventListener("change", () => {
+      localStorage.setItem(TOP_UP_THRESHOLD_STORAGE_KEY, thresholdSelect.value);
+      populateTopUpTargetOptions(targetSelect, Number(thresholdSelect.value));
+      localStorage.setItem(TOP_UP_TARGET_STORAGE_KEY, targetSelect.value);
+      targetSelect.disabled = Number(thresholdSelect.value) === DRACONIC_DEPTHS_TOP_UP_THRESHOLD_DISABLED;
+    });
+    targetSelect.addEventListener("change", () => {
+      localStorage.setItem(TOP_UP_TARGET_STORAGE_KEY, targetSelect.value);
+    });
+    section.appendChild(thresholdLabel);
+    section.appendChild(targetLabel);
+    return section;
+  }
+  function populateTopUpTargetOptions(targetSelect, minValue, preferredValue) {
+    const fallbackValue = preferredValue ?? (Number(targetSelect.value) || DRACONIC_DEPTHS_TOP_UP_TARGET_MAX);
+    targetSelect.innerHTML = "";
+    for (let i = minValue; i <= DRACONIC_DEPTHS_TOP_UP_TARGET_MAX; i++) {
+      const option = document.createElement("option");
+      option.value = i;
+      option.textContent = i;
+      targetSelect.appendChild(option);
+    }
+    targetSelect.value = fallbackValue >= minValue ? fallbackValue : DRACONIC_DEPTHS_TOP_UP_TARGET_MAX;
+  }
+  function updateDraconicDepthsUI() {
+    const locationBadge = document.getElementById(LOCATION_BADGE_ID);
+    const section = document.getElementById(DRACONIC_DEPTHS_SECTION_ID);
+    if (!isInDraconicDepths()) {
+      if (locationBadge.textContent !== "") {
+        locationBadge.textContent = "";
+      }
+      section.style.display = "none";
+      return;
+    }
+    const huntsRemaining = getHuntsRemaining();
+    const badgeText = huntsRemaining !== null ? ` (Draconic Depths, ${huntsRemaining} hunts remaining)` : " (Draconic Depths)";
+    if (locationBadge.textContent !== badgeText) {
+      locationBadge.textContent = badgeText;
+    }
+    section.style.display = "flex";
+  }
+  function getHuntsRemaining() {
+    const el = document.querySelector(DRACONIC_DEPTHS_HUNTS_REMAINING_SELECTOR);
+    return el ? Number(el.textContent) : null;
+  }
+  function isInDraconicDepths() {
+    return !!document.querySelector(DRACONIC_DEPTHS_SELECTOR);
+  }
+  function getTopUpThreshold() {
+    return Number(document.getElementById(TOP_UP_THRESHOLD_SELECT_ID).value);
+  }
+  function getTopUpTarget() {
+    return Number(document.getElementById(TOP_UP_TARGET_SELECT_ID).value);
   }
   function renderWaitingForHorn(nextHornTime) {
     const secsToNextHorn = Math.floor((nextHornTime - Date.now()) / 1e3);
@@ -1646,6 +1752,61 @@
   }
   function getStateTextElement() {
     return document.getElementById(STATE_TEXT_ID);
+  }
+
+  // src/draconicDepths.js
+  var isReinforcing = false;
+  async function checkDraconicDepths() {
+    if (!isInDraconicDepths() || isReinforcing) {
+      return;
+    }
+    const huntsRemaining = getHuntsRemaining2();
+    if (huntsRemaining === null) {
+      return;
+    }
+    const threshold = getTopUpThreshold();
+    if (threshold === DRACONIC_DEPTHS_TOP_UP_THRESHOLD_DISABLED) {
+      return;
+    }
+    if (huntsRemaining >= threshold) {
+      return;
+    }
+    const target = getTopUpTarget();
+    const amountToReinforce = target - huntsRemaining;
+    if (amountToReinforce <= 0) {
+      return;
+    }
+    isReinforcing = true;
+    try {
+      await reinforceCavern(amountToReinforce);
+    } finally {
+      isReinforcing = false;
+    }
+  }
+  function getHuntsRemaining2() {
+    const el = document.querySelector(DRACONIC_DEPTHS_HUNTS_REMAINING_SELECTOR);
+    return el ? Number(el.textContent) : null;
+  }
+  async function reinforceCavern(amount) {
+    log(`Reinforcing draconic depths cavern by ${amount} hunts...`);
+    const reinforceButton = document.querySelector(
+      DRACONIC_DEPTHS_REINFORCE_BUTTON_SELECTOR
+    );
+    reinforceButton.click();
+    await sleep(1500);
+    const huntsInput = document.querySelector(
+      DRACONIC_DEPTHS_REINFORCE_HUNTS_INPUT_SELECTOR
+    );
+    huntsInput.value = amount;
+    huntsInput.dispatchEvent(new Event("input", { bubbles: true }));
+    huntsInput.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true }));
+    await sleep(1500);
+    const submitButton = document.querySelector(
+      DRACONIC_DEPTHS_REINFORCE_SUBMIT_BUTTON_SELECTOR
+    );
+    submitButton.click();
+    await sleep(1e3);
+    log("Cavern reinforced!");
   }
 
   // src/index.js
@@ -1694,6 +1855,8 @@
       if (Date.now() - lastRefreshTime > 18e5) {
         window.location.reload();
       }
+      updateDraconicDepthsUI();
+      await checkDraconicDepths();
       if (nextHornTime === -1) {
         break;
       } else if (nextHornTime > Date.now()) {
