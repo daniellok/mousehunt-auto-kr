@@ -8,11 +8,13 @@ import {
   formatTime,
 } from "./utils";
 import { solveKR } from "./kr.js";
+import { checkDraconicDepths } from "./draconicDepths.js";
 import {
   initUI,
   renderSolvingKR,
   renderWaitingForHorn,
   renderStopped,
+  updateDraconicDepthsUI,
 } from "./ui.js";
 
 /**
@@ -93,6 +95,9 @@ async function loop() {
     if (Date.now() - lastRefreshTime > 1800000) {
       window.location.reload();
     }
+
+    updateDraconicDepthsUI();
+    await checkDraconicDepths();
 
     if (nextHornTime === -1) {
       break;
