@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
+  "type": "module",
   "scripts": {
     "build": "node build.mjs"
   },
@@ -11,5 +12,8 @@
   "dependencies": {
     "esbuild": "0.16.16",
     "tesseract.js": "^4.0.2"
+  },
+  "devDependencies": {
+    "canvas": "^3.2.3"
   }
 }
