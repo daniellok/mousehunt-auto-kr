@@ -1,4 +1,4 @@
-import { createWorker } from "tesseract.js";
+import { createWorker, PSM } from "tesseract.js";
 import { sleep, log } from "./utils.js";
 import {
   PUZZLE_IMAGE_SELECTOR,
@@ -7,6 +7,7 @@ import {
   PUZZLE_RESUME_BUTTON,
   PUZZLE_NEW_CODE_LINK,
 } from "./constants.js";
+import { removeBackgroundColors, binarize } from "./captchaPreprocess.js";
 
 export async function solveKR() {
   const img = document.querySelector(PUZZLE_IMAGE_SELECTOR);
@@ -18,10 +19,20 @@ export async function solveKR() {
   const ctx = canvas.getContext("2d");
   ctx.drawImage(newImg, 0, 0);
 
+  // erase the yellow background and diagonal line, then binarize so
+  // tesseract sees plain black text on a clean white background
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  removeBackgroundColors(imageData);
+  binarize(imageData);
+  ctx.putImageData(imageData, 0, 0);
+
   // use tesseract.js to perform OCR
   const worker = await createWorker();
   await worker.loadLanguage("eng");
   await worker.initialize("eng");
+  // the code is always a single line of text, so tell tesseract not to
+  // bother trying to segment the image into paragraphs/blocks
+  await worker.setParameters({ tessedit_pageseg_mode: PSM.SINGLE_LINE });
   const { data } = await worker.recognize(canvas);
   const rawCode = data.text.trim();
   const code = rawCode.replaceAll(/[^A-Za-z0-9]/g, "");

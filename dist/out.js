@@ -1467,12 +1467,12 @@
       var Tesseract = require_Tesseract();
       var languages = require_languages();
       var OEM = require_OEM();
-      var PSM = require_PSM();
+      var PSM2 = require_PSM();
       var { setLogging } = require_log();
       module.exports = {
         languages,
         OEM,
-        PSM,
+        PSM: PSM2,
         createScheduler,
         createWorker: createWorker2,
         setLogging,
@@ -1549,7 +1549,41 @@
   }
 
   // src/kr.js
-  var import_tesseract = __toESM(require_src());
+  var import_tesseract = __toESM(require_src(), 1);
+
+  // src/captchaPreprocess.js
+  var BACKGROUND_COLOR = [255, 220, 100];
+  var LINE_COLOR = [225, 164, 22];
+  var COLOR_TOLERANCE = 8;
+  function removeBackgroundColors(imageData, tolerance = COLOR_TOLERANCE) {
+    const { data } = imageData;
+    for (let i = 0; i < data.length; i += 4) {
+      const pixel = [data[i], data[i + 1], data[i + 2]];
+      if (isCloseTo(pixel, BACKGROUND_COLOR, tolerance) || isCloseTo(pixel, LINE_COLOR, tolerance)) {
+        data[i] = 255;
+        data[i + 1] = 255;
+        data[i + 2] = 255;
+      }
+    }
+    return imageData;
+  }
+  function isCloseTo(pixel, target, tolerance) {
+    return pixel.every((value, idx) => Math.abs(value - target[idx]) <= tolerance);
+  }
+  var BINARIZE_THRESHOLD = 150;
+  function binarize(imageData, threshold = BINARIZE_THRESHOLD) {
+    const { data } = imageData;
+    for (let i = 0; i < data.length; i += 4) {
+      const luminance = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+      const value = luminance < threshold ? 0 : 255;
+      data[i] = value;
+      data[i + 1] = value;
+      data[i + 2] = value;
+    }
+    return imageData;
+  }
+
+  // src/kr.js
   async function solveKR() {
     const img = document.querySelector(PUZZLE_IMAGE_SELECTOR);
     const newImg = await loadImage(img);
@@ -1558,9 +1592,14 @@
     canvas.height = 58;
     const ctx = canvas.getContext("2d");
     ctx.drawImage(newImg, 0, 0);
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    removeBackgroundColors(imageData);
+    binarize(imageData);
+    ctx.putImageData(imageData, 0, 0);
     const worker = await (0, import_tesseract.createWorker)();
     await worker.loadLanguage("eng");
     await worker.initialize("eng");
+    await worker.setParameters({ tessedit_pageseg_mode: import_tesseract.PSM.SINGLE_LINE });
     const { data } = await worker.recognize(canvas);
     const rawCode = data.text.trim();
     const code = rawCode.replaceAll(/[^A-Za-z0-9]/g, "");
